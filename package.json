@@ -1,0 +1,44 @@
+{
+  "name": "fhe-hook-template",
+  "version": "1.0.0",
+  "description": "Template for building FHE-enabled Uniswap hooks",
+  "scripts": {
+    "test": "forge test --via-ir"
+  },
+  "keywords": [
+		"blockchain",
+		"ethereum",
+		"smart-contracts",
+		"solidity",
+		"FHE",
+		"encryption",
+		"privacy",
+		"coprocessor",
+		"fhenix",
+		"cofhe",
+    "uniswap",
+    "trading",
+    "hooks"
+	],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marronjo/fhe-hook-template.git"
+  },
+  "author": "marronjo",
+  "license": "MIT",
+  "dependencies": {
+		"@openzeppelin/contracts": "^5.0.0",
+		"@openzeppelin/contracts-upgradeable": "^5.0.0",
+		"@fhenixprotocol/cofhe-contracts": "0.0.13",
+		"cofhe-foundry-mocks": "github:fhenixprotocol/cofhe-foundry-mocks",
+    	"@uniswap/v4-core": "1.0.2",
+    	"@uniswap/v4-periphery": "1.0.2",
+		"forge-std": "github:foundry-rs/forge-std"
+	},
+  "devDependencies": {
+		"@nomicfoundation/hardhat-ethers": "^3.0.8",
+		"@nomicfoundation/hardhat-foundry": "^1.1.3",
+		"@nomicfoundation/hardhat-toolbox": "^5.0.0",
+		"hardhat": "^2.22.19"
+	}
+}
