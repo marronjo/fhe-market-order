@@ -1,26 +1,6 @@
-# fhe-hook-template
-### **A template for writing Uniswap FHE-Enabled v4 Hooks 🔒🦄**
+# FHE Market Order Hook
 
-> Bridging private computation and public liquidity with Fully Homomorphic Encryption in Uniswap v4 Hooks.
-
-[`Use this Template`](https://github.com/marronjo/fhe-hook-template/generate)
-
-1. The example hook [Counter.sol](src/Counter.sol) demonstrates basic FHE computation in the `beforeSwap()`, `afterSwap()`, `_beforeAddLiquidity()` and `_beforeRemoveLiquidity()` hooks. It simply adds encrypted '1' to the counter in each hook.
-2. The test template [Counter.t.sol](test/Counter.t.sol) preconfigures the v4 pool manager, test FHE-enabled tokens and test liquidity.
-
-<details>
-<summary>Updating to v4-template:latest</summary>
-
-This template is actively maintained -- you can update the v4 dependencies, scripts, and helpers: 
-```bash
-git remote add template https://github.com/marronjo/fhe-hook-template
-git fetch template
-git merge template/main <BRANCH> --allow-unrelated-histories
-```
-
-</details>
-
----
+`A Uniswap v4 hook that provides frontrunning-resistance using fully homomorphic encryption (FHE)`
 
 ### Check Forge Installation
 *Ensure that you have correctly installed Foundry (Forge) Stable. You can update Foundry by running:*
@@ -29,17 +9,13 @@ git merge template/main <BRANCH> --allow-unrelated-histories
 foundryup
 ```
 
-> *v4-template* appears to be _incompatible_ with Foundry Nightly. See [foundry announcements](https://book.getfoundry.sh/announcements) to revert back to the stable build
-
-
-
 ## Set up
 
-*requires [foundry](https://book.getfoundry.sh)*
+*requires [foundry](https://book.getfoundry.sh)* and a package manager e.g. [pnpm](https://pnpm.io/)
 
-```
-forge install
-forge test --via-ir
+``` bash
+pnpm install    # install dependencies
+forge test      # run foundry tests
 ```
 
 ### Local Development (Anvil)
@@ -59,7 +35,6 @@ forge script script/Anvil.s.sol \
 
 See [script/](script/) for hook deployment, pool creation, liquidity provision, and swapping.
 
----
 
 <details>
 <summary><h2>Troubleshooting</h2></summary>
@@ -93,8 +68,6 @@ Hook deployment failures are caused by incorrect flags or incorrect salt mining
         * If anvil does not have the CREATE2 deployer, your foundry may be out of date. You can update it with `foundryup`
 
 </details>
-
----
 
 ## 📖 Resources
 
