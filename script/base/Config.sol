@@ -8,9 +8,9 @@ import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 /// @notice Shared configuration between scripts
 contract Config {
     /// @dev populated with default anvil addresses
-    IERC20 constant token0 = IERC20(address(0x0165878A594ca255338adfa4d48449f69242Eb8F));
-    IERC20 constant token1 = IERC20(address(0xa513E6E4b8f2a923D98304ec87F64353C4D5C853));
-    IHooks constant hookContract = IHooks(address(0x0));
+    IERC20 constant token0 = IERC20(address(0x2f4eD4942BdF443aE5da11ac3cAB7bee8d6FaF45));       // CPH
+    IERC20 constant token1 = IERC20(address(0xbD313aDE73Cc114184CdBEf96788dd55118d4911));       // MSK
+    IHooks constant hookContract = IHooks(address(0x26ec265d869e4B024Eb0161961d5f72B31b20080)); // Market Order Hook
 
     Currency constant currency0 = Currency.wrap(address(token0));
     Currency constant currency1 = Currency.wrap(address(token1));
