@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "forge-std/Script.sol";
 import {PositionManager} from "v4-periphery/src/PositionManager.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
+import {PoolId} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {CurrencyLibrary, Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {Actions} from "v4-periphery/src/libraries/Actions.sol";
 import {LiquidityAmounts} from "@uniswap/v4-core/test/utils/LiquidityAmounts.sol";
@@ -29,15 +30,16 @@ contract CreatePoolAndAddLiquidityScript is Script, Constants, Config {
     uint160 startingPrice = 79228162514264337593543950336; // floor(sqrt(1) * 2^96)
 
     // --- liquidity position configuration --- //
-    uint256 public token0Amount = 1e18;
-    uint256 public token1Amount = 1e18;
+    // 100K tokens on either side
+    uint256 public token0Amount = 1e23;
+    uint256 public token1Amount = 1e23;
 
     // range of the position
     int24 tickLower = -600; // must be a multiple of tickSpacing
     int24 tickUpper = 600;
     /////////////////////////////////////
 
-    function run() external {
+    function run() external returns(PoolId id) {
         // tokens should be sorted
         PoolKey memory pool = PoolKey({
             currency0: currency0,
@@ -47,6 +49,8 @@ contract CreatePoolAndAddLiquidityScript is Script, Constants, Config {
             hooks: hookContract
         });
         bytes memory hookData = new bytes(0);
+
+        id = pool.toId();
 
         // --------------------------------- //
 
@@ -64,7 +68,7 @@ contract CreatePoolAndAddLiquidityScript is Script, Constants, Config {
         uint256 amount1Max = token1Amount + 1 wei;
 
         (bytes memory actions, bytes[] memory mintParams) =
-            _mintLiquidityParams(pool, tickLower, tickUpper, liquidity, amount0Max, amount1Max, address(this), hookData);
+            _mintLiquidityParams(pool, tickLower, tickUpper, liquidity, amount0Max, amount1Max, msg.sender, hookData);
 
         // multicall parameters
         bytes[] memory params = new bytes[](2);
@@ -79,6 +83,11 @@ contract CreatePoolAndAddLiquidityScript is Script, Constants, Config {
 
         // if the pool is an ETH pair, native tokens are to be transferred
         uint256 valueToPass = currency0.isAddressZero() ? amount0Max : 0;
+
+        vm.startBroadcast();
+        token0.approve(address(hookContract), type(uint256).max);
+        token1.approve(address(hookContract), type(uint256).max);
+        vm.stopBroadcast();
 
         vm.startBroadcast();
         tokenApprovals();
