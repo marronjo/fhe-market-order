@@ -26,7 +26,9 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {FHE, InEuint128, euint128} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 
 contract MarketOrder is BaseHook {
-    event MarketOrderExecuted(uint128 amount0, uint128 amount1);
+
+    event OrderPlaced(address indexed user, euint128 indexed handle);
+    event OrderSettled(address indexed user, euint128 indexed handle);
 
     using SafeERC20 for IERC20;
     using PoolIdLibrary for PoolKey;
@@ -97,6 +99,10 @@ contract MarketOrder is BaseHook {
         return userOrders[key.toId()][handle];
     }
 
+    function getOrderDecryptStatus(euint128 handle) external view returns(bool decrypted){
+        (,decrypted) = FHE.getDecryptResultSafe(handle);
+    }
+
     // -----------------------------------------------
     // NOTE: see IHooks.sol for function documentation
     // -----------------------------------------------
@@ -110,6 +116,8 @@ contract MarketOrder is BaseHook {
         FHE.decrypt(_liquidity);
 
         getPoolQueue(key, zeroForOne).push(_liquidity);
+
+        emit OrderPlaced(msg.sender, _liquidity);
     }
 
     function _beforeSwap(address, PoolKey calldata key, SwapParams calldata, bytes calldata)
@@ -131,6 +139,7 @@ contract MarketOrder is BaseHook {
             if(decrypted){
                 address user = _depositUserTokens(key, handle, liquidity, zeroForOne);
                 _executeDecryptedOrder(key, user, liquidity, zeroForOne);
+                emit OrderSettled(user, handle);
                 queue.pop();
             } else {
                 break;  //avoid looping until decryption ready
