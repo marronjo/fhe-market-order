@@ -150,7 +150,16 @@ contract MarketOrderTest is Test, Fixtures, CoFheTest {
 
         vm.warp(block.timestamp + 11); //ensure decryption is finished
 
+        vm.recordLogs();
+
         _swap(ONE_FOR_ZERO, 1e5);  //perform swap e.g. trigger beforeSwap hook
+
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        assertEq(entries[5].topics.length, 3);
+        assertEq(entries[5].topics[0], keccak256("OrderSettled(address,uint256)"));
+        assertEq(entries[5].topics[1], bytes32(abi.encode(address(this))));
+        assertEq(entries[5].topics[2], bytes32(liquidity.ctHash));
 
         (uint256 t2, uint256 t3,,) = _getBalances();
 
@@ -158,7 +167,7 @@ contract MarketOrderTest is Test, Fixtures, CoFheTest {
         assertLt(t1, t3);   // user balance t1 increases
     }
 
-    function test_FailedOrderPoppedFromQueue() public {
+    function test_OrderFailed() public {
         (,, uint256 h0, uint256 h1) = _getBalances();
 
         InEuint128 memory liquidity = createInEuint128(LIQUIDITY_1E8, address(this));
@@ -168,8 +177,26 @@ contract MarketOrderTest is Test, Fixtures, CoFheTest {
 
         token0.burn(token0.balanceOf(address(this)));
 
+        vm.recordLogs();
+
         // make sure this does not revert
         _swap(ONE_FOR_ZERO, 1e5);
+
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        // Market Order Events:
+        // order failed
+
+        // Regular Swap Events:
+        // swap
+        // transfer (in)
+        // transfer (out)
+        assertEq(entries.length, 4);
+
+        assertEq(entries[0].topics.length, 3);
+        assertEq(entries[0].topics[0], keccak256("OrderFailed(address,uint256)"));
+        assertEq(entries[0].topics[1], bytes32(abi.encode(address(this))));
+        assertEq(entries[0].topics[2], bytes32(liquidity.ctHash));
 
         (,, uint256 h2, uint256 h3) = _getBalances();
 
