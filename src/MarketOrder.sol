@@ -29,6 +29,7 @@ contract MarketOrder is BaseHook {
 
     event OrderPlaced(address indexed user, euint128 indexed handle);
     event OrderSettled(address indexed user, euint128 indexed handle);
+    event OrderFailed(address indexed user, euint128 indexed handle);
 
     using SafeERC20 for IERC20;
     using PoolIdLibrary for PoolKey;
@@ -137,10 +138,15 @@ contract MarketOrder is BaseHook {
             euint128 handle = queue.peek();
             (liquidity, decrypted) = FHE.getDecryptResultSafe(handle);
             if(decrypted){
-                address user = _depositUserTokens(key, handle, liquidity, zeroForOne);
+                (address user, bool success) = _depositUserTokens(key, handle, liquidity, zeroForOne);
+                if(!success){
+                    emit OrderFailed(user, handle);
+                    queue.pop();
+                    break;
+                }
                 _executeDecryptedOrder(key, user, liquidity, zeroForOne);
-                emit OrderSettled(user, handle);
                 queue.pop();
+                emit OrderSettled(user, handle);
             } else {
                 break;  //avoid looping until decryption ready
             }
@@ -149,10 +155,10 @@ contract MarketOrder is BaseHook {
 
     //What to do if transfer fails ? just skip or delete user order entirely ??
     //This will affect queue consistency eother way, could process intermedite orders and re-add to start of queue
-    function _depositUserTokens(PoolKey calldata key, euint128 handle, uint128 amount, bool zeroForOne) private returns(address user){
+    function _depositUserTokens(PoolKey calldata key, euint128 handle, uint128 amount, bool zeroForOne) private returns(address user, bool success){
         user = userOrders[key.toId()][euint128.unwrap(handle)];
         address token = zeroForOne ? Currency.unwrap(key.currency0) : Currency.unwrap(key.currency1);
-        IERC20(token).safeTransferFrom(user, address(this), uint256(amount));
+        success = IERC20(token).trySafeTransferFrom(user, address(this), uint256(amount));
     }
 
     function _executeDecryptedOrder(PoolKey calldata key, address user, uint128 decryptedLiquidity, bool zeroForOne) private returns(uint128 amount0, uint128 amount1) {
