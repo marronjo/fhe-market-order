@@ -29,6 +29,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 
 import {MarketOrder} from "../src/MarketOrder.sol";
+import {Token} from "../src/Token.sol";
 
 //FHE Imports
 import {FHE, InEuint128, euint128} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
@@ -44,8 +45,8 @@ contract MarketOrderTest is Test, Fixtures, CoFheTest {
     address hookAddr;
     PoolId poolId;
 
-    IERC20 token0;
-    IERC20 token1;
+    Token token0;
+    Token token1;
 
     uint256 tokenId;
     int24 tickLower;
@@ -61,7 +62,7 @@ contract MarketOrderTest is Test, Fixtures, CoFheTest {
 
         deployMintAndApprove2Currencies();
 
-        (token0, token1) = (IERC20(Currency.unwrap(currency0)), IERC20(Currency.unwrap(currency1)));
+        (token0, token1) = (Token(Currency.unwrap(currency0)), Token(Currency.unwrap(currency1)));
 
         deployAndApprovePosm(manager);
 
@@ -155,6 +156,29 @@ contract MarketOrderTest is Test, Fixtures, CoFheTest {
 
         assertGt(t0, t2);   // user balance t0 decreases
         assertLt(t1, t3);   // user balance t1 increases
+    }
+
+    function test_FailedOrderPoppedFromQueue() public {
+        (,, uint256 h0, uint256 h1) = _getBalances();
+
+        InEuint128 memory liquidity = createInEuint128(LIQUIDITY_1E8, address(this));
+        hook.placeMarketOrder(key, ZERO_FOR_ONE, liquidity);
+
+        vm.warp(block.timestamp + 11);
+
+        token0.burn(token0.balanceOf(address(this)));
+
+        // make sure this does not revert
+        _swap(ONE_FOR_ZERO, 1e5);
+
+        (,, uint256 h2, uint256 h3) = _getBalances();
+
+        // ensure queue is empty
+        assertEq(hook.getPoolQueue(key, ZERO_FOR_ONE).isEmpty(), true);
+
+        // assert hook balances don't change
+        assertEq(h0, h2);
+        assertEq(h1, h3);
     }
 
     // ---------------------------

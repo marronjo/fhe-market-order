@@ -27,7 +27,7 @@ import {LiquidityAmounts} from "@uniswap/v4-core/test/utils/LiquidityAmounts.sol
 import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {SwapParams, ModifyLiquidityParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 
-import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
+import {Token} from "../../src/Token.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SortTokens} from "./SortTokens.sol";
@@ -120,7 +120,7 @@ contract Deployers is Test {
     }
 
     function mintAndApproveCurrency() internal returns (Currency currency) {
-        MockERC20 token = deployToken(2 ** 255);
+        Token token = deployToken(2 ** 255);
 
         address[9] memory toApprove = [
             address(swapRouter),
@@ -142,20 +142,20 @@ contract Deployers is Test {
     }
 
     function deployAndMint2Currencies() internal returns (Currency, Currency) {
-        MockERC20[] memory tokens = deployTokens(2, 2 ** 255);
+        Token[] memory tokens = deployTokens(2, 2 ** 255);
         return SortTokens.sort(address(tokens[0]), address(tokens[1]));
     }
 
-    function deployToken(uint256 totalSupply) internal returns (MockERC20 token) {
-        token = new MockERC20("TEST", "TEST", 18);
-        token.mint(address(this), totalSupply);
+    function deployToken(uint256 totalSupply) internal returns (Token token) {
+        token = new Token("TEST", "TEST");
+        token.mint(totalSupply);
     }
 
-    function deployTokens(uint8 count, uint256 totalSupply) internal returns (MockERC20[] memory tokens) {
-        tokens = new MockERC20[](count);
+    function deployTokens(uint8 count, uint256 totalSupply) internal returns (Token[] memory tokens) {
+        tokens = new Token[](count);
         for (uint8 i = 0; i < count; i++) {
-            tokens[i] = new MockERC20("TEST", "TEST", 18);
-            tokens[i].mint(address(this), totalSupply);
+            tokens[i] = new Token("TEST", "TEST");
+            tokens[i].mint(totalSupply);
         }
     }
 
