@@ -15,6 +15,7 @@ import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
+import {IUnlockCallback} from "@uniswap/v4-core/src/interfaces/callback/IUnlockCallback.sol";
 
 //Custom Queue for FHE values
 import {Queue} from "./Queue.sol";
@@ -25,7 +26,9 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 //FHE Imports
 import {FHE, InEuint128, euint128} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 
-contract MarketOrder is BaseHook {
+contract MarketOrder is BaseHook, IUnlockCallback {
+
+    error MarketOrder__CallerNotSelf(address sender);
 
     event OrderPlaced(address indexed user, euint128 indexed handle);
     event OrderSettled(address indexed user, euint128 indexed handle);
@@ -48,6 +51,13 @@ contract MarketOrder is BaseHook {
     struct QueueInfo {
         Queue zeroForOne;
         Queue oneForZero;
+    }
+
+    modifier selfOnly() {
+        if(msg.sender != address(this)){
+            revert MarketOrder__CallerNotSelf(msg.sender);
+        }
+        _;
     }
 
     bytes internal constant ZERO_BYTES = bytes("");
@@ -80,7 +90,7 @@ contract MarketOrder is BaseHook {
     }
 
     //if queue does not exist for given pool and direction, deploy new queue
-    function getPoolQueue(PoolKey calldata key, bool zeroForOne) public returns(Queue queue){
+    function getPoolQueue(PoolKey memory key, bool zeroForOne) public returns(Queue queue){
         QueueInfo storage queueInfo = poolQueue[key.toId()];
 
         if(zeroForOne){
@@ -104,12 +114,9 @@ contract MarketOrder is BaseHook {
         (,decrypted) = FHE.getDecryptResultSafe(handle);
     }
 
-    // -----------------------------------------------
-    // NOTE: see IHooks.sol for function documentation
-    // -----------------------------------------------
-
-    //TODO ... ADD APPROVALS!!!
     function placeMarketOrder(PoolKey calldata key, bool zeroForOne, InEuint128 calldata liquidity) external {
+        _flushOrder(key);   //flush existing order from the queue, to avoid build up
+
         euint128 _liquidity = FHE.asEuint128(liquidity);
         uint256 handle = euint128.unwrap(_liquidity);
 
@@ -132,11 +139,11 @@ contract MarketOrder is BaseHook {
         return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }
 
-    function _settleDecryptedOrders(PoolKey calldata key, bool zeroForOne) private returns(uint128 liquidity, bool decrypted){
+    function _settleDecryptedOrders(PoolKey memory key, bool zeroForOne) private {
         Queue queue = getPoolQueue(key, zeroForOne);
         while(!queue.isEmpty()){
             euint128 handle = queue.peek();
-            (liquidity, decrypted) = FHE.getDecryptResultSafe(handle);
+            (uint128 liquidity, bool decrypted) = FHE.getDecryptResultSafe(handle);
             if(decrypted){
                 (address user, bool success) = _depositUserTokens(key, handle, liquidity, zeroForOne);
                 if(!success){
@@ -152,16 +159,32 @@ contract MarketOrder is BaseHook {
             }
         }
     }
+    
+    /**
+    * This method needs to acquire a lock in order to swap with the pool manager.
+    * Since it won't be called in any of the callbacks e.g. beforeSwap
+    * It will be manually called when a user places a market order, to flush orders in the queue
+    */
+    function _flushOrder(PoolKey calldata key) private {
+        poolManager.unlock(abi.encode(key));
+    }
+
+    function unlockCallback(bytes calldata data) external override onlyPoolManager returns(bytes memory) {
+        PoolKey memory key = abi.decode(data, (PoolKey));
+        _settleDecryptedOrders(key, true);
+        _settleDecryptedOrders(key, false);
+        return ZERO_BYTES;
+    }
 
     //What to do if transfer fails ? just skip or delete user order entirely ??
     //This will affect queue consistency eother way, could process intermedite orders and re-add to start of queue
-    function _depositUserTokens(PoolKey calldata key, euint128 handle, uint128 amount, bool zeroForOne) private returns(address user, bool success){
+    function _depositUserTokens(PoolKey memory key, euint128 handle, uint128 amount, bool zeroForOne) private returns(address user, bool success){
         user = userOrders[key.toId()][euint128.unwrap(handle)];
         address token = zeroForOne ? Currency.unwrap(key.currency0) : Currency.unwrap(key.currency1);
         success = IERC20(token).trySafeTransferFrom(user, address(this), uint256(amount));
     }
 
-    function _executeDecryptedOrder(PoolKey calldata key, address user, uint128 decryptedLiquidity, bool zeroForOne) private returns(uint128 amount0, uint128 amount1) {
+    function _executeDecryptedOrder(PoolKey memory key, address user, uint128 decryptedLiquidity, bool zeroForOne) private returns(uint128 amount0, uint128 amount1) {
         BalanceDelta delta = _swapPoolManager(key, zeroForOne, -int256(uint256(decryptedLiquidity))); 
 
         if(zeroForOne){
@@ -187,7 +210,7 @@ contract MarketOrder is BaseHook {
         }
     }
 
-    function _swapPoolManager(PoolKey calldata key, bool zeroForOne, int256 amountSpecified) private returns(BalanceDelta delta) {
+    function _swapPoolManager(PoolKey memory key, bool zeroForOne, int256 amountSpecified) private returns(BalanceDelta delta) {
         SwapParams memory params = SwapParams({
             zeroForOne: zeroForOne,
             amountSpecified: amountSpecified,
