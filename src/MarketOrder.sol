@@ -109,7 +109,7 @@ contract MarketOrder is BaseHook, IUnlockCallback, ReentrancyGuardTransient {
     }
 
     function placeMarketOrder(PoolKey calldata key, bool zeroForOne, InEuint128 calldata liquidity) external {
-        _flushOrder(key);   //flush existing order from the queue, to avoid build up
+        flushOrder(key);   //flush existing order from the queue, to avoid build up
 
         euint128 _liquidity = FHE.asEuint128(liquidity);
         uint256 handle = euint128.unwrap(_liquidity);
