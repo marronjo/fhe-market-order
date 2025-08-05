@@ -155,7 +155,7 @@ contract MarketOrderTest is Test, Fixtures, CoFheTest {
         _swap(ONE_FOR_ZERO, 1e5);  //perform swap e.g. trigger beforeSwap hook
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
-
+        
         assertEq(entries[5].topics.length, 3);
         assertEq(entries[5].topics[0], keccak256("OrderSettled(address,uint256)"));
         assertEq(entries[5].topics[1], bytes32(abi.encode(address(this))));
@@ -165,6 +165,24 @@ contract MarketOrderTest is Test, Fixtures, CoFheTest {
 
         assertGt(t0, t2);   // user balance t0 decreases
         assertLt(t1, t3);   // user balance t1 increases
+    }
+
+    function test_secondOrderFlushed() public {
+        (uint256 t0, uint256 t1,,) = _getBalances();
+
+        test_BeforeSwapOrderExecutes();
+
+        (uint256 t2, uint256 t3,,) = _getBalances();
+
+        test_BeforeSwapOrderExecutes();
+
+        (uint256 t4, uint256 t5,,) = _getBalances();
+
+        assertGt(t0, t2);       // user balance t0 decreases
+        assertGt(t3, t4);       // user balance t3 decreases between swaps
+
+        assertLt(t1, t3);       // user balance t3 increases
+        assertLt(t3, t5);       // user balance t5 increases between swaps
     }
 
     function test_OrderFailed() public {
