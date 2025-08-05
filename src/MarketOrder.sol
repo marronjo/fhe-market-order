@@ -22,11 +22,12 @@ import {Queue} from "./Queue.sol";
 
 //Token Imports
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
 //FHE Imports
 import {FHE, InEuint128, euint128} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 
-contract MarketOrder is BaseHook, IUnlockCallback {
+contract MarketOrder is BaseHook, IUnlockCallback, ReentrancyGuardTransient {
 
     error MarketOrder__CallerNotSelf(address sender);
 
@@ -158,7 +159,7 @@ contract MarketOrder is BaseHook, IUnlockCallback {
     * Since it won't be called in any of the callbacks e.g. beforeSwap
     * It will be manually called when a user places a market order, to flush orders in the queue
     */
-    function _flushOrder(PoolKey calldata key) private {
+    function flushOrder(PoolKey calldata key) public nonReentrant {
         poolManager.unlock(abi.encode(key));
     }
 
