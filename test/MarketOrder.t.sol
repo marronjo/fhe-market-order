@@ -53,6 +53,7 @@ contract MarketOrderTest is Test, Fixtures, CoFheTest {
     int24 tickUpper;
 
     uint128 private constant LIQUIDITY_1E8 = 1e8;
+    uint128 private constant LIQUIDITY_1E9 = 1e9;
     bool private constant ZERO_FOR_ONE = true;
     bool private constant ONE_FOR_ZERO = false;
 
@@ -168,21 +169,21 @@ contract MarketOrderTest is Test, Fixtures, CoFheTest {
     }
 
     function test_secondOrderFlushed() public {
-        (uint256 t0, uint256 t1,,) = _getBalances();
+        InEuint128 memory liquidity = createInEuint128(LIQUIDITY_1E8, address(this));
+        hook.placeMarketOrder(key, ZERO_FOR_ONE, liquidity);
 
-        test_BeforeSwapOrderExecutes();
+        vm.warp(block.timestamp + 11);
 
-        (uint256 t2, uint256 t3,,) = _getBalances();
+        euint128 top = hook.getPoolQueue(key, ZERO_FOR_ONE).peek();
+        assertHashValue(top, LIQUIDITY_1E8);
 
-        test_BeforeSwapOrderExecutes();
+        InEuint128 memory liquidity2 = createInEuint128(LIQUIDITY_1E9, address(this));
+        hook.placeMarketOrder(key, ONE_FOR_ZERO, liquidity2);
 
-        (uint256 t4, uint256 t5,,) = _getBalances();
+        assertTrue(hook.getPoolQueue(key, ZERO_FOR_ONE).isEmpty()); //first order should be flushed
 
-        assertGt(t0, t2);       // user balance t0 decreases
-        assertGt(t3, t4);       // user balance t3 decreases between swaps
-
-        assertLt(t1, t3);       // user balance t3 increases
-        assertLt(t3, t5);       // user balance t5 increases between swaps
+        euint128 top2 = hook.getPoolQueue(key, ONE_FOR_ZERO).peek();// second order should top of other queue
+        assertHashValue(top2, LIQUIDITY_1E9);
     }
 
     function test_OrderFailed() public {
