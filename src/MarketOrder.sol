@@ -53,13 +53,6 @@ contract MarketOrder is BaseHook, IUnlockCallback {
         Queue oneForZero;
     }
 
-    modifier selfOnly() {
-        if(msg.sender != address(this)){
-            revert MarketOrder__CallerNotSelf(msg.sender);
-        }
-        _;
-    }
-
     bytes internal constant ZERO_BYTES = bytes("");
 
     mapping(PoolId key => mapping(uint256 handle => address user)) private userOrders;
